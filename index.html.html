@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inbox Race</title>
+<style>
+  :root{
+    --paper:#f4ede0;
+    --ink:#2b2620;
+    --stamp-red:#b4453f;
+    --stamp-blue:#3b5e7a;
+    --gold:#c89b3c;
+    --p1:#b4453f;
+    --p2:#3b5e7a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Courier New', monospace;
+    background:var(--paper);
+    color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  h1{
+    font-family:Georgia,'Times New Roman',serif;
+    text-align:center;
+    font-size:2.1rem;
+    letter-spacing:1px;
+    margin:0 0 4px;
+  }
+  .subtitle{
+    text-align:center;
+    font-size:.85rem;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:#6b6358;
+    margin-bottom:22px;
+  }
+  .stamp{
+    position:absolute;
+    top:18px;
+    right:24px;
+    width:62px;
+    height:74px;
+    border:3px dashed var(--stamp-red);
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.6rem;
+    color:var(--stamp-red);
+    transform:rotate(8deg);
+    background:#fffaf0;
+  }
+  .wrap{max-width:980px;margin:0 auto;position:relative;}
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:24px;
+    background:#fffaf0;
+    border:2px solid var(--ink);
+    border-radius:10px;
+    padding:14px 18px;
+  }
+  .players{display:flex;gap:18px;}
+  .player{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 12px;
+    border-radius:20px;
+    border:2px solid transparent;
+    font-weight:bold;
+  }
+  .player.active{border-color:var(--gold); background:#fff3cf;}
+  .dot{width:16px;height:16px;border-radius:50%;}
+  .dot.p1{background:var(--p1);}
+  .dot.p2{background:var(--p2);}
+
+  button{
+    font-family:inherit;
+    font-weight:bold;
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    padding:10px 18px;
+    background:var(--ink);
+    color:var(--paper);
+    transition:transform .1s;
+  }
+  button:hover{transform:translateY(-2px);}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+  #dieDisplay{
+    width:46px;height:46px;
+    border:2px solid var(--ink);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.4rem;font-weight:bold;
+    background:#fff;
+  }
+
+  .board{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+    margin-bottom:22px;
+  }
+  .tile{
+    position:relative;
+    background:#fffaf0;
+    border:2px solid var(--ink);
+    border-radius:8px;
+    min-height:96px;
+    padding:8px;
+    font-size:.72rem;
+    line-height:1.25;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .tile.start, .tile.finish{
+    background:var(--gold);
+    color:var(--ink);
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-family:Georgia,serif;
+    font-weight:bold;
+    font-size:.95rem;
+  }
+  .tile-num{
+    position:absolute;
+    top:4px;
+    right:6px;
+    font-weight:bold;
+    font-size:.65rem;
+    color:#8a8275;
+  }
+  .tokens{
+    position:absolute;
+    bottom:4px;
+    left:4px;
+    display:flex;
+    gap:3px;
+  }
+  .token{
+    width:14px;height:14px;
+    border-radius:50%;
+    border:2px solid #fff;
+    box-shadow:0 0 0 1px var(--ink);
+  }
+  .token.p1{background:var(--p1);}
+  .token.p2{background:var(--p2);}
+
+  .tile.lit{
+    outline:3px solid var(--gold);
+  }
+
+  #questionPanel{
+    background:#fff;
+    border:3px solid var(--ink);
+    border-radius:12px;
+    padding:22px 24px;
+    text-align:center;
+    min-height:90px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+  #questionPanel .label{
+    font-size:.75rem;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    color:#8a8275;
+  }
+  #questionPanel .q{
+    font-family:Georgia,serif;
+    font-size:1.25rem;
+  }
+  .envelope-icon{font-size:1.6rem;}
+
+  footer{
+    text-align:center;
+    font-size:.72rem;
+    color:#8a8275;
+    margin-top:18px;
+  }
+
+  @media (max-width:640px){
+    .board{grid-template-columns:repeat(4,1fr);}
+    .tile{min-height:84px;font-size:.65rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stamp">✉</div>
+  <h1>Inbox Race</h1>
+  <div class="subtitle">An Email Etiquette Board Game · Play in Pairs</div>
+
+  <div class="controls">
+    <div class="players">
+      <div class="player active" id="p1tag"><span class="dot p1"></span>Player 1</div>
+      <div class="player" id="p2tag"><span class="dot p2"></span>Player 2</div>
+    </div>
+    <button id="rollBtn">Roll the Die</button>
+    <div id="dieDisplay">?</div>
+    <button id="resetBtn">Reset Game</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div id="questionPanel">
+    <div class="label">Waiting for first roll</div>
+    <div class="envelope-icon">✉</div>
+    <div class="q">Roll the die to land on a square and answer the question together.</div>
+  </div>
+
+  <footer>Rules: Take turns rolling. Land on a square, read the question aloud, and discuss your answer with your partner before passing the die. First to reach FINISH wins — but you must answer every square you land on!</footer>
+</div>
+
+<script>
+const questions = [
+  "How many emails do you get every day? Are they all important?",
+  "Do you feel that people overuse emails?",
+  "Do you set up an autoresponder when you're out of the office?",
+  "Do you prefer sending emails or talking face-to-face?",
+  "In which situations are emails a necessary means of communication?",
+  "Are you annoyed when people add you to CC and you get lots of useless emails?",
+  "Do you check your work emails on weekends or during vacations?",
+  "What is your biggest pet peeve when it comes to email etiquette?",
+  "How quickly do you feel expected to reply to an email?",
+  "Do you use folders or labels to organize your inbox, or do you leave everything in one place?",
+  "Have you ever sent an email to the wrong person by accident?",
+  "Do you think email will eventually be replaced by instant messaging apps like Slack or Teams?",
+  "Do you prefer a short, bulleted email or a detailed, paragraph-style email?",
+  "How do you handle spam or promotional emails that clutter your inbox?",
+  "What is your opinion on using emojis or exclamation points in professional emails?",
+  "Do you have a specific routine or time of day dedicated to checking emails?",
+  "What is the most memorable or strangest email you have ever received?",
+  "Do you find \"Reply All\" to be useful or mostly a nuisance?",
+  "How do you decide whether a conversation should be an email or a meeting?",
+  "Do you use email signatures, and what information do you include in them?"
+];
+
+const TOTAL = questions.length; // 20 question tiles
+const boardEl = document.getElementById('board');
+const dieDisplay = document.getElementById('dieDisplay');
+const rollBtn = document.getElementById('rollBtn');
+const resetBtn = document.getElementById('resetBtn');
+const questionPanel = document.getElementById('questionPanel');
+const p1tag = document.getElementById('p1tag');
+const p2tag = document.getElementById('p2tag');
+
+let positions = [0, 0]; // 0 = START, 1..20 = question tiles, 21 = FINISH
+let current = 0; // index into positions
+let rolling = false;
+
+function buildBoard(){
+  boardEl.innerHTML = '';
+  // Start tile
+  boardEl.appendChild(makeTile('start', 0, 'START'));
+  for(let i=1;i<=TOTAL;i++){
+    boardEl.appendChild(makeTile('q', i, questions[i-1]));
+  }
+  boardEl.appendChild(makeTile('finish', TOTAL+1, 'FINISH'));
+}
+
+function makeTile(type, num, text){
+  const div = document.createElement('div');
+  div.className = 'tile' + (type==='start' ? ' start' : type==='finish' ? ' finish' : '');
+  div.id = 'tile-' + num;
+  if(type==='q'){
+    const numEl = document.createElement('div');
+    numEl.className = 'tile-num';
+    numEl.textContent = num;
+    div.appendChild(numEl);
+    const txt = document.createElement('div');
+    txt.textContent = text.length > 70 ? text.slice(0,68)+'…' : text;
+    div.appendChild(txt);
+  } else {
+    div.textContent = text;
+  }
+  const tokWrap = document.createElement('div');
+  tokWrap.className = 'tokens';
+  tokWrap.id = 'tok-' + num;
+  div.appendChild(tokWrap);
+  return div;
+}
+
+function renderTokens(){
+  document.querySelectorAll('.tokens').forEach(t => t.innerHTML = '');
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('lit'));
+  positions.forEach((pos, idx) => {
+    const tokWrap = document.getElementById('tok-' + pos);
+    if(tokWrap){
+      const tok = document.createElement('div');
+      tok.className = 'token p' + (idx+1);
+      tokWrap.appendChild(tok);
+    }
+    const tile = document.getElementById('tile-' + pos);
+    if(tile) tile.classList.add('lit');
+  });
+}
+
+function updatePlayerTags(){
+  p1tag.classList.toggle('active', current===0);
+  p2tag.classList.toggle('active', current===1);
+}
+
+function setQuestionPanel(label, text, icon){
+  questionPanel.innerHTML = `
+    <div class="label">${label}</div>
+    <div class="envelope-icon">${icon || '✉'}</div>
+    <div class="q">${text}</div>
+  `;
+}
+
+function rollDie(){
+  if(rolling) return;
+  rolling = true;
+  rollBtn.disabled = true;
+  let ticks = 0;
+  const maxTicks = 10;
+  const interval = setInterval(() => {
+    dieDisplay.textContent = 1 + Math.floor(Math.random()*6);
+    ticks++;
+    if(ticks >= maxTicks){
+      clearInterval(interval);
+      const result = 1 + Math.floor(Math.random()*6);
+      dieDisplay.textContent = result;
+      movePlayer(result);
+      rolling = false;
+      rollBtn.disabled = false;
+    }
+  }, 70);
+}
+
+function movePlayer(steps){
+  const playerNum = current + 1;
+  let newPos = Math.min(positions[current] + steps, TOTAL+1);
+  positions[current] = newPos;
+  renderTokens();
+
+  if(newPos === TOTAL+1){
+    setQuestionPanel(`Player ${playerNum} reaches the FINISH`, `🎉 Player ${playerNum} wins Inbox Race! Press Reset to play again.`, '🏆');
+    rollBtn.disabled = true;
+  } else if(newPos === 0){
+    setQuestionPanel(`Player ${playerNum}`, `Still at START — roll again next turn!`, '✉');
+    switchTurn();
+  } else {
+    setQuestionPanel(`Player ${playerNum} — Square ${newPos}`, questions[newPos-1], '✉');
+    switchTurn();
+  }
+}
+
+function switchTurn(){
+  current = current === 0 ? 1 : 0;
+  updatePlayerTags();
+}
+
+function resetGame(){
+  positions = [0,0];
+  current = 0;
+  rolling = false;
+  rollBtn.disabled = false;
+  dieDisplay.textContent = '?';
+  updatePlayerTags();
+  renderTokens();
+  setQuestionPanel('Waiting for first roll', 'Roll the die to land on a square and answer the question together.', '✉');
+}
+
+rollBtn.addEventListener('click', rollDie);
+resetBtn.addEventListener('click', resetGame);
+
+buildBoard();
+renderTokens();
+updatePlayerTags();
+</script>
+</body>
+</html>
